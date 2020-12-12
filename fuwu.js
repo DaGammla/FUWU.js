@@ -1,5 +1,5 @@
 /*
-* FUWU.js JavaScript Library v0.5.1
+* FUWU.js JavaScript Library v0.5.2
 * https://github.com/DaGammla/FUWU.js
 *
 * Released under the MIT license
@@ -77,10 +77,8 @@ const $cookies = {
     
     //Clears a cookie
     clear: function(cookieName){
-        //Set the expiry date of the cookie to the current time, so it clears itself
-        let expires = "expires=" + new Date().toUTCString();
-        //Also set the value of the cookie to ""
-        document.cookie = encodeURIComponent(cookieName) + "=;" + expires;
+        //Remove the cookies value and set it to expire immediately
+        $cookies.set(cookieName, "", new Date());
     },
 
     //Returns all cookies available to this page as an object
@@ -168,10 +166,16 @@ const $cookies = {
                 + expires + ";" + pathString;
         },
 
-        //Redirect get, clear to $cookies
+
+        //Clears a global cookie or a cookie of a specific path
+        clear: function(cookieName, path){
+            //Remove the cookies value and set it to expire immediately
+            $cookies.set(cookieName, "", path, new Date());
+        },
+
+        //Redirect get to $cookies
 
         get: function(cookieName){ return $cookies.get(cookieName); },
-        clear: function(cookieName){  $cookies.clear(cookieName); },
 
 
         //G.T object is for temporary cookies with global or specific path
@@ -202,7 +206,7 @@ const $cookies = {
             //Redirect get, clear to $cookies
 
             get: function(cookieName){ return $cookies.get(cookieName); },
-            clear: function(cookieName){  $cookies.clear(cookieName); },
+            clear: function(cookieName, path){  $cookies.g.clear(cookieName, path); },
             
         },
     }
