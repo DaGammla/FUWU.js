@@ -1,5 +1,5 @@
 /*
-* FUWU.js JavaScript Library v0.5.2
+* FUWU.js JavaScript Library v0.6.0
 * https://github.com/DaGammla/FUWU.js
 *
 * Released under the MIT license
@@ -12,17 +12,16 @@
 //with option for callback on each of the found elements
 function $a(cssSelector, eachCallback){
 
-    if (eachCallback){
-        //If callback is given perform it on each found element
-        let matches = document.querySelectorAll(cssSelector);
-        matches.forEach(eachCallback);
+    //Every element that matches the css selector
+    let matches = document.querySelectorAll(cssSelector);
 
-        //Also returns the found ones
-        return matches;
-    } else {
-        //Else return all found elements
-        return document.querySelectorAll(cssSelector);
+    if (eachCallback){
+        //If there is a callback
+        matches.forEach(eachCallback);
     }
+
+    //Always return matches no matter of callback
+    return matches;
 }
 
 //Just a shorter version of js native document.querySelector
@@ -85,24 +84,36 @@ const $cookies = {
     all: function(){
         //All cookies available for this page
         let cookieString = document.cookie;
+
         //Every cookie is seperated by a ';'
         let cookieArray = cookieString.split(";");
 
         //Return object
-        let cookieObject = {}
+        let cookieObject = {};
 
         //Loop through all cookie strings
         cookieArray.forEach(cookie => {
+
             //Find index where cookieName stops and cookieValue starts
             let equalsIndex = cookie.indexOf("=");
 
-            //The cookie name and value were encoded to prevent problems with '=' or ';'
-            cookieObject[
-                //Substring until the equals symbol is cookie name
-                decodeURIComponent(cookie.substring(0, equalsIndex).trim())]
+            //If no equals index is present, it is no cookie
+            if (equalsIndex < 0)
+                return; //= contine;
+
+            //Substring until the equals symbol is cookie name
+            let cookieName = decodeURIComponent(cookie.substring(0, equalsIndex).trim())
+
+            //Only the first cookie with that name is stored
+            if (cookieObject[cookieName]){
+                return; //= contine;
+            }
+
+            //The cookie name and value  were encoded to prevent problems with '=' or ';'
+            cookieObject[cookieName]
                 //Substring after equals sign is cookie value
                 = decodeURIComponent(cookie.substring(equalsIndex + 1).trim());
-        })
+        });
 
         return cookieObject;
     },
@@ -124,7 +135,7 @@ const $cookies = {
         //Redirect get, clear to $cookies
 
         get: function(cookieName){ return $cookies.get(cookieName); },
-        clear: function(cookieName){  $cookies.clear(cookieName); },
+        clear: function(cookieName){ $cookies.clear(cookieName); },
         
     },
 
@@ -206,11 +217,75 @@ const $cookies = {
             //Redirect get, clear to $cookies
 
             get: function(cookieName){ return $cookies.get(cookieName); },
-            clear: function(cookieName, path){  $cookies.g.clear(cookieName, path); },
+            clear: function(cookieName, path){ $cookies.g.clear(cookieName, path); },
             
         },
     }
 };
+
+//$params object simplifies retrieving parameters from the url
+const $params = {
+    //Get the value of a parameter
+    get: function(name, url){
+        //With an URL instance, the parameters can easily be extracted from the url with .search
+        let urlInstance = new URL(url ? url : window.location);
+        //URLSearchParams can automatically find all parameters and their values
+        let paramsInstance = new URLSearchParams(urlInstance.search);
+
+        return paramsInstance.get(name);
+    },
+    //Get an array of all values of parameters with that name
+    getEvery: function(name, url, eachCallback){
+
+        //Url aargument is optional but in the middle of the arguments
+        if (typeof url == 'function') {
+            //So if theres a function on the second place, it is the callback
+            eachCallback = arguments[1];
+            url = null;
+        }
+
+        //With an URL instance, the parameters can easily be extracted from the url with .search
+        let urlInstance = new URL(url ? url : window.location);
+        //URLSearchParams can automatically find all parameters and their values
+        let paramsInstance = new URLSearchParams(urlInstance.search);
+
+        //All parameters with that name parsed by the URLSearchParams object
+        let all = paramsInstance.getAll(name);
+
+        //If there is a callback, call if for every element
+        if (eachCallback){
+            all.forEach(eachCallback);
+        }
+
+        //Even if there is a callback, also return the found parameter values
+        return all;
+    },
+    has: function(name, url){
+        //With an URL instance, the parameters can easily be extracted from the url with .search
+        let urlInstance = new URL(url ? url : window.location);
+        //URLSearchParams can automatically find all parameters and their values
+        let paramsInstance = new URLSearchParams(urlInstance.search);
+
+        return paramsInstance.has(name);
+    },
+    all: function(url){
+        //With an URL instance, the parameters can easily be extracted from the url with .search
+        let urlInstance = new URL(url ? url : window.location);
+        //URLSearchParams can automatically find all parameters and their values
+        let paramsInstance = new URLSearchParams(urlInstance.search);
+
+        //Add all key value pairs to this object
+        let paramsObject = {}
+        for (const [key, value] of paramsInstance) {
+            //Only use first of that key
+            if (paramsObject[key]){
+                continue;
+            }
+            paramsObject[key] = value;
+        }
+        return paramsObject;
+    }
+}
 
 //$http object for http requests
 const $http = {
@@ -275,6 +350,7 @@ const $http = {
 
     
     //Redirect all http request methods to $http.request with their respective string
+    //not using ...arguments as this is shorter in minified js
 
     get: function(url, options, callback, errorCallback){ $http.request("GET", url, options, callback, errorCallback) },
     post: function(url, options, callback, errorCallback){ $http.request("POST", url, options, callback, errorCallback) },
@@ -293,6 +369,7 @@ const $http = {
         request: function(method, url, options, callback, errorCallback){ return $http.request(method, url, options, callback, errorCallback, true) },
 
         //Redirect all http request methods to $http.s.request with their respective string
+        //not using ...arguments as this is shorter in minified js
 
         get: function(url, options, callback, errorCallback){ return $http.s.request("GET", url, options, callback, errorCallback) },
         post: function(url, options, callback, errorCallback){ return $http.s.request("POST", url, options, callback, errorCallback) },
@@ -314,6 +391,16 @@ const $json = {
 
     //Returns an js object represented by the json at the given url
     get: function(url, options, callback, errorCallback){
+
+        //Options parameter is optional but in the middle
+        //So this checks whether it is given or if on its
+        //place is a callback
+        if (typeof options == 'function') {
+            callback = arguments[1];
+            errorCallback = arguments[2];
+            options = {};
+        }
+
         //Use http get request to perform this
         $http.get(url, options, function(responseText, statusCode){
             if (callback){
@@ -326,6 +413,16 @@ const $json = {
     //$json.s for synchronous getting a json object
     s: {
         get: function(url, options, callback, errorCallback){
+
+            //Options parameter is optional but in the middle
+            //So this checks whether it is given or if on its
+            //place is a callback
+            if (typeof options == 'function') {
+                callback = arguments[1];
+                errorCallback = arguments[2];
+                options = {};
+            }
+
             //Use http get request to perform this
 
             let responseText = $http.s.get(url, options, function(responseText, statusCode){
@@ -351,7 +448,6 @@ const $domReady = function(){
     //A list of callback that will be executed when the dom is ready
     let readyCallbacks = []
 
-    //Whether the dom is ready or not
     let domReady = false;
 
     //Check if the dom is already ready
@@ -361,7 +457,6 @@ const $domReady = function(){
         //if not add a listener to it
         document.addEventListener("DOMContentLoaded", function(){
 
-            //Dom is now ready
             domReady = true;
 
             //Execute all callbacks
