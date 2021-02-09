@@ -5,7 +5,7 @@
 * Released under the MIT license
 * https://github.com/DaGammla/FUWU.js/blob/main/LICENSE
 *
-* 2020 by DaGammla
+* 2021 by DaGammla
 */
 
 //Shorter version of js native document.querySelectorAll
@@ -290,16 +290,7 @@ const $params = {
 //$http object for http requests
 const $http = {
 
-    request: function(method, url, options, callback, errorCallback, synchronous){
-
-        //Options parameter is optional but in the middle
-        //So this checks whether it is given or if on its
-        //place is a callback
-        if (typeof options == 'function') {
-            callback = arguments[2];
-            errorCallback = arguments[3];
-            options = {};
-        }
+    request: function(options, callback, errorCallback, synchronous){
 
         //Using js native XMLHttpRequest
 
@@ -310,7 +301,7 @@ const $http = {
 
                 //Check if the http request responded 200
                 //200 being the response for OK, meaning the request was successful
-                if (xmlHttp.status == 200){
+                if (xmlHttp.status >= 200 && xmlHttp.status <= 299){
                     if (callback){
                         //Call the callback when available
                         callback(xmlHttp.responseText, xmlHttp.status);
@@ -326,16 +317,16 @@ const $http = {
         }
         
         //Open the HttpRequest with all the parameters
-        xmlHttp.open(method, url, synchronous == true, options.user, options.password);
+        xmlHttp.open(options.method, options.url, synchronous == true, options.user, options.password);
 
         if (options.headers){
 
-            //Add all headers from the options.headers array, if any specified
-            options.headers.forEach(headerObject => {
-                xmlHttp.setRequestHeader(headerObject.header, headerObject.value);
-            });
+            //Add all headers from the options.headers object, if any specified
+            for (const [key, value] of options.headers) {
+                xmlHttp.setRequestHeader(key, value);
+            }
 
-            //Header objects look like:{ header: "SOME_HEADER", value: "THE_HEADERS_VALUE" }
+            //Header objects look like:{ "SOME_HEADER": "SOME_VALUE", "OTHER_HEADER": "OTHER_VALUE" }
         }
 
         //Send the HttpRequest
@@ -352,13 +343,8 @@ const $http = {
     //Redirect all http request methods to $http.request with their respective string
     //not using ...arguments as this is shorter in minified js
 
-    get: function(url, options, callback, errorCallback){ $http.request("GET", url, options, callback, errorCallback) },
-    post: function(url, options, callback, errorCallback){ $http.request("POST", url, options, callback, errorCallback) },
-    put: function(url, options, callback, errorCallback){ $http.request("PUT", url, options, callback, errorCallback) },
-    head: function(url, options, callback, errorCallback){ $http.request("HEAD", url, options, callback, errorCallback) },
-    delete: function(url, options, callback, errorCallback){ $http.request("DELETE", url, options, callback, errorCallback) },
-    patch: function(url, options, callback, errorCallback){ $http.request("PATCH", url, options, callback, errorCallback) },
-    options: function(url, options, callback, errorCallback){ $http.request("OPTIONS", url, options, callback, errorCallback) },
+    get: function(url, callback, errorCallback){ return $http.s.request({method:"GET", url:url}, callback, errorCallback) },
+    post: function(url, data, callback, errorCallback){ return $http.s.request({method:"POST", url:url, data:data}, callback, errorCallback) },
 
     //$http.s for synchronous http requests
     //shouldn't really be used on websites but can be really useful
@@ -366,19 +352,13 @@ const $http = {
     s : {
 
         //Redirect $http.s.request to $http.request with synchronous set to true
-        request: function(method, url, options, callback, errorCallback){ return $http.request(method, url, options, callback, errorCallback, true) },
+        request: function(options, callback, errorCallback){ return $http.request(options, callback, errorCallback, true) },
 
         //Redirect all http request methods to $http.s.request with their respective string
         //not using ...arguments as this is shorter in minified js
 
-        get: function(url, options, callback, errorCallback){ return $http.s.request("GET", url, options, callback, errorCallback) },
-        post: function(url, options, callback, errorCallback){ return $http.s.request("POST", url, options, callback, errorCallback) },
-        put: function(url, options, callback, errorCallback){ return $http.s.request("PUT", url, options, callback, errorCallback) },
-        head: function(url, options, callback, errorCallback){ return $http.s.request("HEAD", url, options, callback, errorCallback) },
-        delete: function(url, options, callback, errorCallback){ return $http.s.request("DELETE", url, options, callback, errorCallback) },
-        patch: function(url, options, callback, errorCallback){ return $http.s.request("PATCH", url, options, callback, errorCallback) },
-        options: function(url, options, callback, errorCallback){ return $http.s.request("OPTIONS", url, options, callback, errorCallback) },
-        
+        get: function(url, callback, errorCallback){ return $http.s.request({method:"GET", url:url}, callback, errorCallback) },
+        post: function(url, data, callback, errorCallback){ return $http.s.request({method:"POST", url:url, data:data}, callback, errorCallback) },
     }
 }
 
@@ -390,19 +370,10 @@ const $json = {
     string: function(jsObject){ return JSON.stringify(jsObject)},
 
     //Returns an js object represented by the json at the given url
-    get: function(url, options, callback, errorCallback){
-
-        //Options parameter is optional but in the middle
-        //So this checks whether it is given or if on its
-        //place is a callback
-        if (typeof options == 'function') {
-            callback = arguments[1];
-            errorCallback = arguments[2];
-            options = {};
-        }
+    get: function(url, callback, errorCallback){
 
         //Use http get request to perform this
-        $http.get(url, options, function(responseText, statusCode){
+        $http.get(url, function(responseText, statusCode){
             if (callback){
                 //When a callback is given, call it with the parsed response form the http request
                 callback($json.parse(responseText), statusCode);
@@ -412,20 +383,11 @@ const $json = {
 
     //$json.s for synchronous getting a json object
     s: {
-        get: function(url, options, callback, errorCallback){
-
-            //Options parameter is optional but in the middle
-            //So this checks whether it is given or if on its
-            //place is a callback
-            if (typeof options == 'function') {
-                callback = arguments[1];
-                errorCallback = arguments[2];
-                options = {};
-            }
+        get: function(url, callback, errorCallback){
 
             //Use http get request to perform this
 
-            let responseText = $http.s.get(url, options, function(responseText, statusCode){
+            let responseText = $http.s.get(url, function(responseText, statusCode){
                 if (callback){
                     //When a callback is given, call it with the parsed response form the http request
                     callback($json.parse(responseText), statusCode);
