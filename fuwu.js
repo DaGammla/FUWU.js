@@ -1,5 +1,5 @@
 /*
-* FUWU.js JavaScript Library v0.6.1
+* FUWU.js JavaScript Library v0.7.0
 * https://github.com/DaGammla/FUWU.js
 *
 * Released under the MIT license
@@ -8,26 +8,116 @@
 * 2021 by DaGammla
 */
 
-//Shorter version of js native document.querySelectorAll
-//with option for callback on each of the found elements
-function $a(cssSelector, eachCallback){
+const [$o, $a, $extend] = function(){
 
-    //Every element that matches the css selector
-    let matches = document.querySelectorAll(cssSelector);
+    let extensions = {}
 
-    if (eachCallback){
-        //If there is a callback
-        matches.forEach(eachCallback);
+    //Just a shorter version of js native document.querySelector
+    let o = function(cssSelector){
+        return document.querySelector(cssSelector);
+    }
+    let o2 = function(cssSelector){
+        let element = document.querySelector(cssSelector);
+
+        Object.keys(extensions).forEach((funcName)=>{
+            if (!(funcName in element)){
+                element[funcName] = function(){extensions[funcName].apply(element, arguments)}
+            }
+        });
+        
+        return element;
     }
 
-    //Always return matches no matter of callback
-    return matches;
-}
+    //Shorter version of js native document.querySelectorAll
+    //with option for callback on each of the found elements
+    let a = function(cssSelector, eachCallback){
+        //Every element that matches the css selector
+        let matches = document.querySelectorAll(cssSelector);
 
-//Just a shorter version of js native document.querySelector
-function $o(cssSelector){
-    return document.querySelector(cssSelector);
-}
+        if (eachCallback){
+            //If there is a callback
+            matches.forEach(eachCallback);
+        }
+
+        //Always return matches no matter of callback
+        return matches;
+    }
+    let a2 = function(cssSelector, eachCallback){
+        //Every element that matches the css selector
+        let matches = document.querySelectorAll(cssSelector);
+
+        matches.forEach((element, index, array)=>{
+            Object.keys(extensions).forEach((funcName)=>{
+                if (!(funcName in element)){
+                    element[funcName] = function(){extensions[funcName].apply(element, arguments)}
+                }
+            });
+            if (eachCallback){
+                //If there is a callback
+                eachCallback(element, index, array)
+            }
+        })
+
+        //Always return matches no matter of callback
+        return matches;
+    }
+
+    return [
+        function(cssSelector){
+            return o(cssSelector)
+        },
+        function(cssSelector, eachCallback){
+            return a(cssSelector, eachCallback)
+        },
+        function(funcName, extensionFunction){
+            if (extensionFunction instanceof Function){
+                extensions[funcName] = extensionFunction;
+                o = o2;
+                a = a2;
+            }
+        }
+    ]
+}()
+
+
+//Wrapped around in anonymous function to prevent global scope for readyCallbacks and domReady
+//those shouldn't be possible to tamper with
+const $domReady = function(){
+
+    //A list of callback that will be executed when the dom is ready
+    let readyCallbacks = []
+
+    let domReady = false;
+
+    //Check if the dom is already ready
+    if (document.readyState == "interactive" || document.readyState == "complete"){
+        domReady = true;
+    } else {
+        //if not add a listener to it
+        document.addEventListener("DOMContentLoaded", function(){
+
+            domReady = true;
+
+            //Execute all callbacks
+            readyCallbacks.forEach(callback => callback());
+
+            //No need to keep storing them
+            readyCallbacks = null;
+        });
+    }
+
+    //This is the actual $domReady function
+    return function(callback){
+        //If the dom is already ready
+        if (domReady){
+            //then execute the callback now
+            callback();
+        } else {
+            //Otherweise add it to the list of callbacks that are waiting
+            readyCallbacks.push(callback);
+        }
+    }
+}()
 
 //$cookies object simplifies storing cookies
 const $cookies = {
@@ -223,6 +313,47 @@ const $cookies = {
     }
 };
 
+//$storage is a wrapper for window.localStorage and window.sessionStorage
+const $storage = {
+
+    set: function(key, value){
+        window.localStorage.setItem(key, value);
+    },
+
+    get: function(key){
+        return window.localStorage.getItem(key);
+    },
+    
+    clear: function(key){
+        window.localStorage.removeItem(key);
+    },
+
+    //Returns all storage available to this page as an object
+    all: function(){
+        return JSON.parse(JSON.stringify(window.localStorage));
+    },
+
+    //T object for temporary cookies, that are deleted when the browser closes
+    t: {
+        set: function(key, value){
+            window.sessionStorage.setItem(key, value);
+        },
+    
+        get: function(key){
+            return window.sessionStorage.getItem(key);
+        },
+        
+        clear: function(key){
+            window.sessionStorage.removeItem(key);
+        },
+    
+        //Returns all temporary storage available to this page as an object
+        all: function(){
+            return JSON.parse(JSON.stringify(window.sessionStorage));
+        }
+    }
+};
+
 //$params object simplifies retrieving parameters from the url
 const $params = {
     //Get the value of a parameter
@@ -400,43 +531,3 @@ const $json = {
         }
     }
 }
-
-
-//Wrapped around in anonymous function to prevent global scope for readyCallbacks and domReady
-//those shouldn't be possible to tamper with
-const $domReady = function(){
-
-    //A list of callback that will be executed when the dom is ready
-    let readyCallbacks = []
-
-    let domReady = false;
-
-    //Check if the dom is already ready
-    if (document.readyState == "interactive" || document.readyState == "complete"){
-        domReady = true;
-    } else {
-        //if not add a listener to it
-        document.addEventListener("DOMContentLoaded", function(){
-
-            domReady = true;
-
-            //Execute all callbacks
-            readyCallbacks.forEach(callback => callback());
-
-            //No need to keep storing them
-            readyCallbacks = null;
-        });
-    }
-
-    //This is the actual $domReady function
-    return function(callback){
-        //If the dom is already ready
-        if (domReady){
-            //then execute the callback now
-            callback();
-        } else {
-            //Otherweise add it to the list of callbacks that are waiting
-            readyCallbacks.push(callback);
-        }
-    }
-}()
