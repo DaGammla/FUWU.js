@@ -1,5 +1,5 @@
 /*
-* FUWU.js JavaScript Library v0.7.0
+* FUWU.js JavaScript Library v0.7.1
 * https://github.com/DaGammla/FUWU.js
 *
 * Released under the MIT license
@@ -8,75 +8,59 @@
 * 2021 by DaGammla
 */
 
-const [$o, $a, $extend] = function(){
+const {$o, $a, $extend} = function(){
 
     let extensions = {}
 
-    //Just a shorter version of js native document.querySelector
-    let o = function(cssSelector){
-        return document.querySelector(cssSelector);
-    }
-    let o2 = function(cssSelector){
-        let element = document.querySelector(cssSelector);
-
-        Object.keys(extensions).forEach((funcName)=>{
-            if (!(funcName in element)){
-                element[funcName] = function(){extensions[funcName].apply(element, arguments)}
+    return {
+        //Just a shorter version of js native document.querySelector
+        $o: function(cssSelector){
+            let element
+            if (typeof cssSelector == "string"){
+                element = document.querySelector(cssSelector);
+            } else {
+                element = cssSelector
             }
-        });
-        
-        return element;
-    }
 
-    //Shorter version of js native document.querySelectorAll
-    //with option for callback on each of the found elements
-    let a = function(cssSelector, eachCallback){
-        //Every element that matches the css selector
-        let matches = document.querySelectorAll(cssSelector);
-
-        if (eachCallback){
-            //If there is a callback
-            matches.forEach(eachCallback);
-        }
-
-        //Always return matches no matter of callback
-        return matches;
-    }
-    let a2 = function(cssSelector, eachCallback){
-        //Every element that matches the css selector
-        let matches = document.querySelectorAll(cssSelector);
-
-        matches.forEach((element, index, array)=>{
             Object.keys(extensions).forEach((funcName)=>{
                 if (!(funcName in element)){
                     element[funcName] = function(){extensions[funcName].apply(element, arguments)}
                 }
             });
-            if (eachCallback){
-                //If there is a callback
-                eachCallback(element, index, array)
+            
+            return element;
+        },
+        //Shorter version of js native document.querySelectorAll
+        //with option for callback on each of the found elements
+        $a: function(cssSelector, eachCallback){
+            //Every element that matches the css selector
+            let matches;
+            if (typeof cssSelector == "string"){
+                matches = document.querySelectorAll(cssSelector);
+            } else {
+                matches = cssSelector
             }
-        })
 
-        //Always return matches no matter of callback
-        return matches;
-    }
+            matches.forEach((element, index)=>{
+                Object.keys(extensions).forEach((funcName)=>{
+                    if (!(funcName in element)){
+                        element[funcName] = function(){extensions[funcName].apply(element, arguments)}
+                    }
+                });
+                if (eachCallback){
+                    eachCallback(element, index)
+                }
+            })
 
-    return [
-        function(cssSelector){
-            return o(cssSelector)
+            //Always return matches no matter of callback
+            return matches;
         },
-        function(cssSelector, eachCallback){
-            return a(cssSelector, eachCallback)
-        },
-        function(funcName, extensionFunction){
-            if (extensionFunction instanceof Function){
+        $extend: function(funcName, extensionFunction){
+            if (typeof extensionFunction == "function"){
                 extensions[funcName] = extensionFunction;
-                o = o2;
-                a = a2;
             }
         }
-    ]
+    }
 }()
 
 
